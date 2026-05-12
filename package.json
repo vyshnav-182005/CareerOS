@@ -1,0 +1,42 @@
+{
+  "name": "careeros",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "build": "next build",
+    "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@tailwindcss/postcss": "latest",
+    "lucide-react": "latest",
+    "next": "latest",
+    "pdf-parse": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "latest",
+    "@testing-library/jest-dom": "latest",
+    "@testing-library/react": "latest",
+    "@types/node": "latest",
+    "@types/pdf-parse": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "eslint": "latest",
+    "eslint-config-next": "latest",
+    "jsdom": "latest",
+    "tailwindcss": "latest",
+    "typescript": "latest",
+    "vitest": "latest"
+  },
+  "vitest": {
+    "environment": "jsdom",
+    "setupFiles": [
+      "./src/test/setup.ts"
+    ]
+  }
+}

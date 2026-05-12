@@ -1,0 +1,9 @@
+node_modules
+.next
+out
+coverage
+.env
+.env.local
+npm-debug.log*
+dev-server*.log
+dev-node*.log

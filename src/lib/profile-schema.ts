@@ -1,0 +1,101 @@
+import { z } from "zod";
+
+const EvidenceString = z.string().min(1);
+const RoleAlignmentScoreSchema = z.preprocess((value) => {
+  if (typeof value !== "number") {
+    return value;
+  }
+
+  if (value > 0 && value <= 1) {
+    return Math.round(value * 100);
+  }
+
+  return Math.round(value);
+}, z.number().int().min(0).max(100));
+
+export const SkillSchema = z.object({
+  name: z.string().min(1),
+  evidence: EvidenceString
+});
+
+export const InferredSkillSchema = z.object({
+  name: z.string().min(1),
+  confidence: z.enum(["low", "medium", "high"]),
+  rationale: z.string().min(1),
+  evidence: EvidenceString
+});
+
+export const TechnicalDepthSchema = z.object({
+  area: z.string().min(1),
+  level: z.enum(["foundational", "intermediate", "advanced", "expert"]),
+  rationale: z.string().min(1),
+  evidence: EvidenceString
+});
+
+export const ExperienceSchema = z.object({
+  title: z.string().nullable(),
+  organization: z.string().nullable(),
+  dates: z.string().nullable(),
+  summary: z.string().nullable(),
+  outcomes: z.array(z.string()).default([]),
+  inferredSeniority: z.string().nullable()
+});
+
+export const ProjectSchema = z.object({
+  name: z.string().min(1),
+  summary: z.string().min(1),
+  technologies: z.array(z.string()).default([]),
+  complexitySignals: z.array(z.string()).default([]),
+  impact: z.string().nullable()
+});
+
+export const CareerProfileSchema = z.object({
+  candidate: z.object({
+    name: z.string().nullable(),
+    headline: z.string().nullable(),
+    contacts: z.array(z.string()).default([]),
+    location: z.string().nullable(),
+    links: z.array(z.string()).default([])
+  }),
+  executiveSummary: z.string().min(1),
+  explicitSkills: z.array(SkillSchema).default([]),
+  inferredSkills: z.array(InferredSkillSchema).default([]),
+  technicalDepth: z.array(TechnicalDepthSchema).default([]),
+  experience: z.array(ExperienceSchema).default([]),
+  projects: z.array(ProjectSchema).default([]),
+  education: z
+    .array(
+      z.object({
+        institution: z.string().nullable(),
+        credential: z.string().nullable(),
+        dates: z.string().nullable(),
+        details: z.array(z.string()).default([])
+      })
+    )
+    .default([]),
+  roleAlignment: z
+    .array(
+      z.object({
+        role: z.string().min(1),
+        score: RoleAlignmentScoreSchema,
+        rationale: z.string().min(1),
+        strengths: z.array(z.string()).default([]),
+        gaps: z.array(z.string()).default([])
+      })
+    )
+    .default([]),
+  strengths: z.array(z.object({ title: z.string(), evidence: EvidenceString })).default([]),
+  gaps: z.array(z.object({ title: z.string(), recommendation: z.string() })).default([]),
+  recommendations: z.array(z.string()).default([]),
+  evidence: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        section: z.string().min(1),
+        snippet: z.string().min(1)
+      })
+    )
+    .default([])
+});
+
+export type CareerProfile = z.infer<typeof CareerProfileSchema>;
