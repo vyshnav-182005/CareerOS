@@ -5,6 +5,12 @@ function cleanLine(line: string): string {
     .replace(/^[\s§•·*]+/, "")
     .replace(/^[\-–—]\s+/, "")
     .replace(/[\s§•·*]+$/, "")
+    // Remove common icon/symbol placeholders (ï, §, •, etc.)
+    .replace(/[ï§•·]/g, "")
+    // Remove icon placeholders like " # ", " H ", etc. that appear before contact info
+    .replace(/\s+[#H§ï]\s+/g, " | ")
+    // Clean up spacing around separators
+    .replace(/\s*\|\s*/g, " | ")
     .replace(/\s+/g, " ")
     .trim();
 }
