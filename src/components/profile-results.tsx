@@ -1,265 +1,308 @@
 import type { ReactNode } from "react";
-import {
-  Brain,
-  BriefcaseBusiness,
-  CheckCircle2,
-  Layers3,
-  MapPin,
-  Target,
-  TriangleAlert,
-  BookOpen,
-  FileText
-} from "lucide-react";
-import type { CareerProfile } from "@/lib/profile-schema";
-import type { ResumeSections } from "@/lib/sections";
-import { normalizeTextBlock } from "@/lib/text";
+import { BookOpen, BriefcaseBusiness, FileText } from "lucide-react";
+import type { CareerProfile } from "../lib/profile-schema";
+import type { ResumeSections } from "../lib/sections";
+import { normalizeTextBlock } from "../lib/text";
+
+export type GitHubProjectSummary = {
+  title: string;
+  url: string;
+  description: string | null;
+  language: string | null;
+  topics: string[];
+  stars: number;
+  atsPoints: string[];
+};
 
 type Props = {
   result: { sections: ResumeSections; profile: CareerProfile } | null;
   isLoading: boolean;
+  githubProjects?: GitHubProjectSummary[];
 };
 
-export function ProfileResults({ result, isLoading }: Props) {
+export function ProfileResults({ result, isLoading, githubProjects = [] }: Props) {
   if (isLoading) {
     return (
-      <div className="rounded-lg border border-[#d8dbd7] bg-white p-8 text-[#404944]">
-        Extracting PDF text, detecting sections, and asking the agent to reason over the resume.
+      <div className="glass-card" style={{ padding: 32, animation: "fadeInUp 0.4s ease both" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          <div className="shimmer" style={{ height: 20, width: "60%" }} />
+          <div className="shimmer" style={{ height: 14, width: "100%" }} />
+          <div className="shimmer" style={{ height: 14, width: "85%" }} />
+          <div className="shimmer" style={{ height: 14, width: "70%" }} />
+          <div style={{ marginTop: 8, display: "flex", gap: 10 }}>
+            <div className="shimmer" style={{ height: 32, width: 80, borderRadius: 100 }} />
+            <div className="shimmer" style={{ height: 32, width: 100, borderRadius: 100 }} />
+            <div className="shimmer" style={{ height: 32, width: 70, borderRadius: 100 }} />
+          </div>
+        </div>
+        <p style={{ marginTop: 20, fontSize: 13, color: "var(--text-muted)", textAlign: "center" }}>
+          Analyzing your profile and generating insights...
+        </p>
       </div>
     );
   }
 
-  if (!result) {
+  if (!result && githubProjects.length === 0) {
     return (
-      <div className="rounded-lg border border-[#d8dbd7] bg-white p-8 text-[#404944]">
-        Upload a resume to see extracted sections, inferred skills, technical depth, role alignment,
-        and evidence.
+      <div className="glass-card empty-state" style={{ animation: "fadeInUp 0.5s ease both" }}>
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: 16,
+            background: "rgba(52, 211, 153, 0.08)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            marginBottom: 4
+          }}
+        >
+          <FileText style={{ width: 28, height: 28, color: "var(--accent-emerald)" }} />
+        </div>
+        <p style={{ fontWeight: 600, color: "var(--text-secondary)", fontSize: 15 }}>
+          No analysis yet
+        </p>
+        <p style={{ maxWidth: 380 }}>
+          Fill in your career details and click &quot;Analyze Profile&quot; to see extracted
+          information, inferred skills, technical depth, role alignment, and evidence.
+        </p>
       </div>
     );
   }
 
-  const { profile, sections } = result;
+  const profile = result?.profile;
+  const sections = result?.sections;
 
   return (
-    <section className="space-y-5">
-      {/* Details Section */}
-      <div className="rounded-lg border border-[#d8dbd7] bg-white p-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#586377]">
-          Candidate Details
-        </p>
-        <div className="mt-4 space-y-3">
-          {profile.candidate.name && (
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#586377]">Name</p>
-              <p className="mt-1 text-sm font-medium text-[#191c1b]">{profile.candidate.name}</p>
-            </div>
-          )}
-          {profile.candidate.headline && (
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#586377]">Headline</p>
-              <p className="mt-1 text-sm text-[#404944]">{profile.candidate.headline}</p>
-            </div>
-          )}
-          {profile.candidate.location && (
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#586377]">Location</p>
-              <div className="mt-1 flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-[#064e3b]" />
-                <p className="text-sm text-[#404944]">{profile.candidate.location}</p>
-              </div>
-            </div>
-          )}
-          {profile.candidate.contacts.length > 0 && (
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#586377]">Contacts</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {profile.candidate.contacts.map((contact) => (
-                  <span key={contact} className="inline-block rounded-md bg-[#f8faf6] px-2 py-1 text-sm text-[#404944]">
-                    {contact}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {profile.candidate.links.length > 0 && (
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#586377]">Links</p>
-              <div className="mt-1 flex flex-wrap gap-2">
-                {profile.candidate.links.map((link) => (
-                  <a
-                    key={link}
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block rounded-md bg-[#f8faf6] px-2 py-1 text-sm text-[#064e3b] underline hover:bg-[#f2f4f1]"
-                  >
-                    {normalizeTextBlock(link)}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+    <section style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {profile ? <CandidateDetails profile={profile} /> : null}
+      {profile ? <AnalysisSummary profile={profile} /> : null}
+      {githubProjects.length > 0 ? <GitHubProjects projects={githubProjects} /> : null}
 
-      {/* Analysis Results Header */}
-      <div className="rounded-lg border border-[#d8dbd7] bg-white p-6">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.05em] text-[#586377]">
-          Analysis Results
-        </p>
-        <div className="mt-2 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-          <div className="flex-1">
-            <h2 className="text-2xl font-semibold text-[#191c1b]">
-              {profile.candidate.name ?? "Resume profile"}
-            </h2>
-          </div>
-          {profile.roleAlignment[0] ? (
-            <div className="rounded-md border border-[#bfc9c3] bg-[#f8faf6] px-3 py-2 text-sm">
-              <span className="font-semibold text-[#064e3b]">
-                {profile.roleAlignment[0].score}/100
-              </span>{" "}
-              {normalizeTextBlock(profile.roleAlignment[0].role)}
-            </div>
-          ) : null}
-        </div>
-        <p className="mt-4 max-w-4xl whitespace-pre-line text-sm leading-6 text-[#404944]">
-          {normalizeTextBlock(profile.executiveSummary)}
-        </p>
-      </div>
-
-      {/* Skills in Tiled Format */}
-      <div className="rounded-lg border border-[#d8dbd7] bg-white p-6">
-        <div className="mb-4 flex items-center gap-2 text-[#064e3b]">
-          <CheckCircle2 className="h-5 w-5" />
-          <h3 className="text-lg font-semibold text-[#191c1b]">Explicit Skills</h3>
-        </div>
-        {profile.explicitSkills.length ? (
-          <div className="flex flex-wrap gap-2">
-            {profile.explicitSkills.map((skill) => (
-              <div
-                key={skill.name}
-                className="inline-flex items-center rounded-full bg-[#e8f5e9] px-3 py-1 text-sm font-medium text-[#064e3b] border border-[#c8e6c9]"
-                title={normalizeTextBlock(skill.evidence)}
-              >
-                {normalizeTextBlock(skill.name)}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-[#707974]">No skills found.</p>
-        )}
-      </div>
-
-      <div className="grid gap-5 xl:grid-cols-2">
-        <Panel
-          icon={<Brain />}
-          title="Inferred Skills"
-          items={profile.inferredSkills.map(
-            (skill) =>
-              `${normalizeTextBlock(skill.name)} (${skill.confidence}) - ${normalizeTextBlock(skill.rationale)}`
-          )}
-        />
-        <Panel
-          icon={<Layers3 />}
-          title="Technical Depth"
-          items={profile.technicalDepth.map(
-            (item) => `${normalizeTextBlock(item.area)}: ${item.level} - ${normalizeTextBlock(item.rationale)}`
-          )}
-        />
-        <Panel
-          icon={<Target />}
-          title="Role Alignment"
-          items={profile.roleAlignment.map(
-            (item) =>
-              `${normalizeTextBlock(item.role)}: ${item.score}/100 - ${normalizeTextBlock(item.rationale)}`
-          )}
-        />
-        <Panel
-          icon={<BriefcaseBusiness />}
-          title="Strengths"
-          items={profile.strengths.map(
-            (item) => `${normalizeTextBlock(item.title)} - ${normalizeTextBlock(item.evidence)}`
-          )}
-        />
-      </div>
-
-      <Panel
-        icon={<TriangleAlert />}
-        title="Gaps"
-        items={profile.gaps.map(
-          (item) => `${normalizeTextBlock(item.title)} - ${normalizeTextBlock(item.recommendation)}`
-        )}
-      />
-
-      {/* Sections Display - Experience, Projects, Education (other than skills) */}
-      {sections.experience && (
-        <div className="rounded-lg border border-[#d8dbd7] bg-white p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <BriefcaseBusiness className="h-5 w-5 text-[#064e3b]" />
-            <h3 className="text-lg font-semibold text-[#191c1b]">Experience</h3>
-          </div>
-          <p className="whitespace-pre-line text-sm leading-6 text-[#404944]">
+      {sections?.experience ? (
+        <SectionCard
+          icon={<BriefcaseBusiness style={{ width: 20, height: 20 }} />}
+          title="Experience"
+          delay="0.55s"
+        >
+          <p style={{ whiteSpace: "pre-line", fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)" }}>
             {normalizeTextBlock(sections.experience)}
           </p>
-        </div>
-      )}
+        </SectionCard>
+      ) : null}
 
-      {sections.projects && (
-        <div className="rounded-lg border border-[#d8dbd7] bg-white p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <FileText className="h-5 w-5 text-[#064e3b]" />
-            <h3 className="text-lg font-semibold text-[#191c1b]">Projects</h3>
-          </div>
-          <p className="whitespace-pre-line text-sm leading-6 text-[#404944]">
+      {sections?.projects ? (
+        <SectionCard
+          icon={<FileText style={{ width: 20, height: 20 }} />}
+          title="Projects"
+          delay="0.6s"
+        >
+          <p style={{ whiteSpace: "pre-line", fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)" }}>
             {normalizeTextBlock(sections.projects)}
           </p>
-        </div>
-      )}
+        </SectionCard>
+      ) : null}
 
-      {sections.education && (
-        <div className="rounded-lg border border-[#d8dbd7] bg-white p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <BookOpen className="h-5 w-5 text-[#064e3b]" />
-            <h3 className="text-lg font-semibold text-[#191c1b]">Education</h3>
-          </div>
-          <p className="whitespace-pre-line text-sm leading-6 text-[#404944]">
+      {sections?.education ? (
+        <SectionCard
+          icon={<BookOpen style={{ width: 20, height: 20 }} />}
+          title="Education"
+          delay="0.65s"
+        >
+          <p style={{ whiteSpace: "pre-line", fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)" }}>
             {normalizeTextBlock(sections.education)}
           </p>
-        </div>
-      )}
+        </SectionCard>
+      ) : null}
 
-      {sections.certifications && (
-        <div className="rounded-lg border border-[#d8dbd7] bg-white p-6">
-          <div className="mb-4 flex items-center gap-2">
-            <CheckCircle2 className="h-5 w-5 text-[#064e3b]" />
-            <h3 className="text-lg font-semibold text-[#191c1b]">Certifications</h3>
-          </div>
-          <p className="whitespace-pre-line text-sm leading-6 text-[#404944]">
+      {sections?.certifications ? (
+        <SectionCard
+          icon={<BookOpen style={{ width: 20, height: 20 }} />}
+          title="Certifications"
+          delay="0.7s"
+        >
+          <p style={{ whiteSpace: "pre-line", fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)" }}>
             {normalizeTextBlock(sections.certifications)}
           </p>
-        </div>
-      )}
+        </SectionCard>
+      ) : null}
     </section>
   );
 }
 
-function Panel({ icon, title, items }: { icon: ReactNode; title: string; items: string[] }) {
+function CandidateDetails({ profile }: { profile: CareerProfile }) {
   return (
-    <div className="rounded-lg border border-[#d8dbd7] bg-white p-5">
-      <div className="mb-4 flex items-center gap-2 text-[#064e3b]">
-        <span className="[&>svg]:h-5 [&>svg]:w-5">{icon}</span>
-        <h3 className="text-lg font-semibold text-[#191c1b]">{title}</h3>
+    <div
+      className="glass-card-highlight result-card"
+      style={{ animation: "fadeInUp 0.4s ease both" }}
+    >
+      <p className="section-label">Candidate Details</p>
+      <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 14 }}>
+        {profile.candidate.name ? (
+          <DetailBlock label="Name">{profile.candidate.name}</DetailBlock>
+        ) : null}
+        {profile.candidate.headline ? (
+          <DetailBlock label="Headline">{profile.candidate.headline}</DetailBlock>
+        ) : null}
+        {profile.candidate.location ? (
+          <DetailBlock label="Location">{profile.candidate.location}</DetailBlock>
+        ) : null}
+        {profile.candidate.contacts.length > 0 ? (
+          <div>
+            <DetailLabel>Contacts</DetailLabel>
+            <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {profile.candidate.contacts.map((contact) => (
+                <span key={contact} className="info-chip">
+                  {contact}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {profile.candidate.links.length > 0 ? (
+          <div>
+            <DetailLabel>Links</DetailLabel>
+            <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
+              {profile.candidate.links.map((link) => (
+                <a
+                  key={link}
+                  href={link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="info-chip"
+                >
+                  {normalizeTextBlock(link)}
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
-      {items.length ? (
-        <ul className="space-y-2 text-sm leading-5 text-[#404944]">
-          {items.map((item) => (
-            <li className="border-t border-[#e1e3e0] pt-2 first:border-t-0 first:pt-0" key={item}>
-              {item}
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <p className="text-sm text-[#707974]">No strong signal found.</p>
-      )}
+    </div>
+  );
+}
+
+function AnalysisSummary({ profile }: { profile: CareerProfile }) {
+  return (
+    <div className="glass-card result-card" style={{ animation: "fadeInUp 0.5s ease both" }}>
+      <p className="section-label">Analysis Results</p>
+      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <h2
+            className="gradient-text"
+            style={{ fontSize: "1.5rem", fontWeight: 700, letterSpacing: "-0.01em" }}
+          >
+            {profile.candidate.name ?? "Resume profile"}
+          </h2>
+          {profile.roleAlignment[0] ? (
+            <div className="score-badge">
+              <span style={{ fontWeight: 700 }}>{profile.roleAlignment[0].score}/100</span>{" "}
+              <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}>
+                {normalizeTextBlock(profile.roleAlignment[0].role)}
+              </span>
+            </div>
+          ) : null}
+        </div>
+        <p style={{ maxWidth: 720, whiteSpace: "pre-line", fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)" }}>
+          {normalizeTextBlock(profile.executiveSummary)}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function GitHubProjects({ projects }: { projects: GitHubProjectSummary[] }) {
+  return (
+    <SectionCard
+      icon={<FileText style={{ width: 20, height: 20 }} />}
+      title="GitHub Projects"
+      delay="0.52s"
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {projects.map((project) => (
+          <article key={project.url || project.title} className="entry-card">
+            <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
+              <div>
+                <a
+                  href={project.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: "var(--text-primary)", fontSize: 15, fontWeight: 700, textDecoration: "none" }}
+                >
+                  {project.title}
+                </a>
+                {project.description ? (
+                  <p style={{ marginTop: 4, fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
+                    {project.description}
+                  </p>
+                ) : null}
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {project.language ? <span className="info-chip">{project.language}</span> : null}
+                <span className="info-chip">{project.stars} stars</span>
+              </div>
+            </div>
+            {project.topics.length > 0 ? (
+              <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {project.topics.map((topic) => (
+                  <span key={`${project.title}-${topic}`} className="skill-tag">
+                    {topic}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+            <ul style={{ marginTop: 12, paddingLeft: 20, color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.7 }}>
+              {project.atsPoints.map((point) => (
+                <li key={`${project.title}-${point}`}>{point}</li>
+              ))}
+            </ul>
+          </article>
+        ))}
+      </div>
+    </SectionCard>
+  );
+}
+
+function DetailBlock({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <DetailLabel>{label}</DetailLabel>
+      <p style={{ marginTop: 4, fontSize: 15, fontWeight: 600, color: "var(--text-primary)" }}>
+        {children}
+      </p>
+    </div>
+  );
+}
+
+function DetailLabel({ children }: { children: ReactNode }) {
+  return (
+    <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-muted)" }}>
+      {children}
+    </p>
+  );
+}
+
+function SectionCard({
+  icon,
+  title,
+  delay,
+  children
+}: {
+  icon: ReactNode;
+  title: string;
+  delay: string;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      className="glass-card result-card"
+      style={{ animation: `fadeInUp 0.5s ease ${delay} both` }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+        <div className="result-card-icon">{icon}</div>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--text-primary)" }}>{title}</h3>
+      </div>
+      {children}
     </div>
   );
 }

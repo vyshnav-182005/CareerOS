@@ -242,3 +242,137 @@ export async function analyzeResumeWithOpenRouter(
     throw new OpenRouterError("OpenRouter returned invalid profile JSON.");
   }
 }
+
+export type ProjectSummary = {
+  title: string;
+  atsPoints: string[];
+};
+
+export async function generateProjectSummaries(
+  projects: Array<{ name: string; description: string | null; language: string | null; topics: string[] }>
+): Promise<ProjectSummary[]> {
+  const apiKey = process.env.OPENROUTER_API_KEY;
+  if (!apiKey) {
+    throw new OpenRouterError("OPENROUTER_API_KEY is not configured.");
+  }
+
+  const prompt = `You are an ATS (Applicant Tracking System) optimization expert. Convert the following GitHub projects into ATS-friendly bullet points.
+
+For each project, create 3-4 concise, achievement-oriented bullet points that:
+- Highlight technical skills and impact
+- Use action verbs (Built, Developed, Implemented, Designed, etc.)
+- Focus on measurable outcomes and capabilities
+- Include relevant technologies
+- Are scannable and keyword-rich
+
+Return ONLY valid JSON in this exact format (no markdown, no extra text):
+[
+  {
+    "title": "Project Name",
+    "atsPoints": [
+      "Bullet point 1",
+      "Bullet point 2",
+      "Bullet point 3"
+    ]
+  }
+]
+
+Projects to analyze:
+${JSON.stringify(projects, null, 2)}`;
+
+  let response: Response;
+
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": process.env.OPENROUTER_SITE_URL ?? "http://localhost:3000",
+        "X-Title": process.env.OPENROUTER_SITE_NAME ?? "CareerOS"
+      },
+      body: JSON.stringify({
+        model: process.env.OPENROUTER_MODEL ?? "openai/gpt-4-mini",
+        messages: [
+          {
+            role: "system",
+            content: "Return only valid JSON. No markdown unless required by the user."
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.3
+      })
+    });
+  } catch {
+    throw new OpenRouterError("Could not connect to OpenRouter. Check your network and API configuration.");
+  }
+
+  if (!response.ok) {
+    let errorBody = "";
+    try {
+      errorBody = await response.text();
+    } catch {
+      // ignore
+    }
+    console.error("OpenRouter error response", {
+      status: response.status,
+      body: errorBody.slice(0, 500)
+    });
+    throw new OpenRouterError(`OpenRouter request failed with status ${response.status}.`);
+  }
+
+  let payload: unknown;
+  let responseText = "";
+  try {
+    responseText = await response.text();
+    payload = JSON.parse(responseText);
+  } catch (error) {
+    console.error("OpenRouter JSON parse error", {
+      error: error instanceof Error ? error.message : String(error),
+      responseLength: responseText.length,
+      responseSample: responseText.slice(0, 200)
+    });
+    throw new OpenRouterError("OpenRouter returned a response that was not valid JSON.");
+  }
+
+  if (!payload || typeof payload !== "object") {
+    throw new OpenRouterError("OpenRouter returned an invalid response shape.");
+  }
+
+  const content = (payload as OpenRouterPayload).choices?.[0]?.message?.content;
+  if (typeof content !== "string") {
+    throw new OpenRouterError("OpenRouter returned an empty response.");
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = extractJson(content);
+  } catch (error) {
+    console.error("OpenRouter JSON extraction error", {
+      error: error instanceof Error ? error.message : String(error),
+      contentLength: content.length,
+      contentSample: content.slice(0, 500)
+    });
+    throw new OpenRouterError("OpenRouter returned invalid JSON syntax.");
+  }
+
+  if (!Array.isArray(parsed)) {
+    throw new OpenRouterError("OpenRouter returned invalid project summaries format.");
+  }
+
+  return parsed.map((item: unknown) => {
+    if (typeof item !== "object" || item === null || !("title" in item) || !("atsPoints" in item)) {
+      throw new OpenRouterError("Invalid project summary structure.");
+    }
+
+    const { title, atsPoints } = item as Record<string, unknown>;
+    if (typeof title !== "string" || !Array.isArray(atsPoints)) {
+      throw new OpenRouterError("Invalid project summary data types.");
+    }
+
+    return {
+      title,
+      atsPoints: atsPoints.map((point: unknown) => String(point))
+    };
+  });
+}

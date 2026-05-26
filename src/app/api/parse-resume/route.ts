@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
-import { analyzeResumeWithOpenRouter, OpenRouterError } from "../../../lib/openrouter";
 import { extractTextFromPdf, ResumePdfError } from "../../../lib/pdf";
 import { detectResumeSections } from "../../../lib/sections";
+import { CareerProfileSchema } from "../../../lib/profile-schema";
 
 export const runtime = "nodejs";
 
@@ -16,16 +16,40 @@ export async function POST(request: Request) {
 
     const rawText = await extractTextFromPdf(file);
     const sections = detectResumeSections(rawText);
-    const profile = await analyzeResumeWithOpenRouter(rawText, sections);
+
+    // Create basic profile from PDF without LLM analysis
+    const profileData = {
+      candidate: {
+        name: null,
+        headline: null,
+        contacts: [],
+        location: null,
+        links: []
+      },
+      executiveSummary: sections.summary || "",
+      explicitSkills: (sections.skills || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+        .map((skill) => ({ name: skill, evidence: "Extracted from resume" })),
+      inferredSkills: [],
+      technicalDepth: [],
+      experience: [],
+      projects: [],
+      education: [],
+      roleAlignment: [],
+      strengths: [],
+      gaps: [],
+      recommendations: [],
+      evidence: []
+    };
+
+    const profile = CareerProfileSchema.parse(profileData);
 
     return NextResponse.json({ rawText, sections, profile });
   } catch (error) {
     if (error instanceof ResumePdfError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: 400 });
-    }
-
-    if (error instanceof OpenRouterError) {
-      return NextResponse.json({ error: error.message }, { status: 502 });
     }
 
     console.error("Unexpected resume analysis error", {
