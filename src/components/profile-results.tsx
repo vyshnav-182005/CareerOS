@@ -11,6 +11,7 @@ export type GitHubProjectSummary = {
   language: string | null;
   topics: string[];
   stars: number;
+  techStack: string[];
   atsPoints: string[];
 };
 
@@ -76,7 +77,6 @@ export function ProfileResults({ result, isLoading, githubProjects = [] }: Props
   return (
     <section style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {profile ? <CandidateDetails profile={profile} /> : null}
-      {profile ? <AnalysisSummary profile={profile} /> : null}
       {githubProjects.length > 0 ? <GitHubProjects projects={githubProjects} /> : null}
 
       {sections?.experience ? (
@@ -177,39 +177,38 @@ function CandidateDetails({ profile }: { profile: CareerProfile }) {
             </div>
           </div>
         ) : null}
+        {profile.education && profile.education.length > 0 ? (
+          <div>
+            <DetailLabel>Education</DetailLabel>
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
+              {profile.education.map((edu, index) => (
+                <div key={index} style={{ padding: 12, backgroundColor: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                  {edu.institution ? (
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+                      {edu.institution}
+                    </p>
+                  ) : null}
+                  {edu.credential ? (
+                    <p style={{ fontSize: 13, color: "var(--text-secondary)", marginTop: 4 }}>
+                      {edu.credential}
+                    </p>
+                  ) : null}
+                  {edu.dates ? (
+                    <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                      {edu.dates}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
 }
 
-function AnalysisSummary({ profile }: { profile: CareerProfile }) {
-  return (
-    <div className="glass-card result-card" style={{ animation: "fadeInUp 0.5s ease both" }}>
-      <p className="section-label">Analysis Results</p>
-      <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-          <h2
-            className="gradient-text"
-            style={{ fontSize: "1.5rem", fontWeight: 700, letterSpacing: "-0.01em" }}
-          >
-            {profile.candidate.name ?? "Resume profile"}
-          </h2>
-          {profile.roleAlignment[0] ? (
-            <div className="score-badge">
-              <span style={{ fontWeight: 700 }}>{profile.roleAlignment[0].score}/100</span>{" "}
-              <span style={{ color: "var(--text-secondary)", fontWeight: 400 }}>
-                {normalizeTextBlock(profile.roleAlignment[0].role)}
-              </span>
-            </div>
-          ) : null}
-        </div>
-        <p style={{ maxWidth: 720, whiteSpace: "pre-line", fontSize: 14, lineHeight: 1.7, color: "var(--text-secondary)" }}>
-          {normalizeTextBlock(profile.executiveSummary)}
-        </p>
-      </div>
-    </div>
-  );
-}
+
 
 function GitHubProjects({ projects }: { projects: GitHubProjectSummary[] }) {
   return (
@@ -221,6 +220,13 @@ function GitHubProjects({ projects }: { projects: GitHubProjectSummary[] }) {
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {projects.map((project) => (
           <article key={project.url || project.title} className="entry-card">
+            {(() => {
+              const uniqueTechStack = Array.from(
+                new Map(project.techStack.map((tech) => [tech.trim().toLowerCase(), tech.trim()])).values()
+              ).filter((tech) => tech.length > 0);
+
+              return (
+                <>
             <div style={{ display: "flex", flexWrap: "wrap", alignItems: "flex-start", justifyContent: "space-between", gap: 10 }}>
               <div>
                 <a
@@ -251,11 +257,26 @@ function GitHubProjects({ projects }: { projects: GitHubProjectSummary[] }) {
                 ))}
               </div>
             ) : null}
+            {uniqueTechStack.length > 0 ? (
+              <div style={{ marginTop: 12 }}>
+                <DetailLabel>Tech stack</DetailLabel>
+                <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {uniqueTechStack.map((tech) => (
+                    <span key={`${project.title}-${tech}`} className="info-chip">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <ul style={{ marginTop: 12, paddingLeft: 20, color: "var(--text-secondary)", fontSize: 14, lineHeight: 1.7 }}>
               {project.atsPoints.map((point) => (
                 <li key={`${project.title}-${point}`}>{point}</li>
               ))}
             </ul>
+                </>
+              );
+            })()}
           </article>
         ))}
       </div>
@@ -306,3 +327,6 @@ function SectionCard({
     </div>
   );
 }
+
+// Export helper components for use in profile results page
+export { DetailBlock, DetailLabel, SectionCard, CandidateDetails, GitHubProjects };

@@ -12,6 +12,7 @@ export type ProjectSummaryResponse = {
     language: string | null;
     topics: string[];
     stars: number;
+    techStack: string[];
     atsPoints: string[];
   }>;
 };
@@ -46,7 +47,8 @@ export async function POST(request: Request) {
       description: project.description || "No description provided",
       language: project.language || "Not specified",
       stars: project.stars,
-      topics: project.topics
+      topics: project.topics,
+      detectedTech: project.detectedTech
     }));
 
     // Generate ATS-friendly summaries using LLM
@@ -62,6 +64,7 @@ export async function POST(request: Request) {
         language: project?.language ?? null,
         topics: project?.topics ?? [],
         stars: project?.stars ?? 0,
+        techStack: mergeTechStack(project?.detectedTech ?? [], summary.techStack),
         atsPoints: summary.atsPoints
       };
     });
@@ -89,6 +92,18 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+function mergeTechStack(primary: string[], secondary: string[]): string[] {
+  const normalized = new Map<string, string>();
+
+  for (const tech of [...primary, ...secondary]) {
+    const trimmed = tech.trim();
+    if (!trimmed) continue;
+    normalized.set(trimmed.toLowerCase(), trimmed);
+  }
+
+  return Array.from(normalized.values());
 }
 
 function getGitHubIdentityFromBody(body: unknown): string {

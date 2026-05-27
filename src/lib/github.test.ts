@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchGitHubRepository,
+  fetchGitHubUserProjects,
   GitHubRepositoryError,
   parseGitHubRepoUrl
 } from "./github";
@@ -145,6 +146,55 @@ describe("fetchGitHubRepository", () => {
     await expect(fetchGitHubRepository("https://github.com/vyshn/limited")).rejects.toMatchObject({
       message: "GitHub API rate limit exceeded. Please try again later.",
       status: 429
+    });
+  });
+});
+
+describe("fetchGitHubUserProjects", () => {
+  beforeEach(() => {
+    global.fetch = vi.fn();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    vi.restoreAllMocks();
+  });
+
+  it("returns public profile repositories with detected tech stack from metadata", async () => {
+    vi.mocked(global.fetch)
+      .mockResolvedValueOnce(
+        jsonResponse([
+          {
+            name: "career-os",
+            full_name: "vyshn/career-os",
+            html_url: "https://github.com/vyshn/career-os",
+            description: "AI profile builder with React, Next.js, and Supabase",
+            homepage: null,
+            stargazers_count: 12,
+            forks_count: 1,
+            watchers_count: 12,
+            open_issues_count: 0,
+            default_branch: "main",
+            language: "TypeScript",
+            topics: ["nextjs", "tailwindcss", "ats"],
+            created_at: "2026-01-01T00:00:00Z",
+            updated_at: "2026-05-01T00:00:00Z"
+          }
+        ])
+      )
+      .mockResolvedValueOnce(jsonResponse([]));
+
+    const projects = await fetchGitHubUserProjects("vyshn");
+
+    expect(projects[0]).toMatchObject({
+      name: "career-os",
+      detectedTech: expect.arrayContaining([
+        "TypeScript",
+        "React",
+        "Next.js",
+        "Tailwind CSS",
+        "Supabase"
+      ])
     });
   });
 });

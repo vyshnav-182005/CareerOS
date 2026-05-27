@@ -124,6 +124,7 @@ export type UserProject = {
   language: string | null;
   stars: number;
   topics: string[];
+  detectedTech: string[];
 };
 
 export async function fetchGitHubUserProjects(username: string): Promise<UserProject[]> {
@@ -160,7 +161,14 @@ export async function fetchGitHubUserProjects(username: string): Promise<UserPro
           description: repo.description,
           language: repo.language,
           stars: repo.stargazers_count,
-          topics: repo.topics ?? []
+          topics: repo.topics ?? [],
+          detectedTech: detectTech({
+            language: repo.language,
+            topics: repo.topics ?? [],
+            description: repo.description,
+            homepage: repo.homepage,
+            readme: ""
+          })
         }))
       );
       page++;

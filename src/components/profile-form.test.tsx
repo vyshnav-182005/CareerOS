@@ -4,6 +4,12 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileForm } from "./profile-form";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn()
+  })
+}));
+
 const originalFetch = global.fetch;
 
 describe("ProfileForm GitHub projects", () => {
@@ -29,6 +35,7 @@ describe("ProfileForm GitHub projects", () => {
               language: "TypeScript",
               topics: ["nextjs", "ats"],
               stars: 12,
+              techStack: ["TypeScript", "Next.js", "React"],
               atsPoints: [
                 "Built an AI career profile builder.",
                 "Implemented ATS-friendly project summaries."
@@ -58,7 +65,10 @@ describe("ProfileForm GitHub projects", () => {
     expect(await screen.findByText("GitHub Projects")).toBeTruthy();
     expect(screen.getByText("career-os")).toBeTruthy();
     expect(screen.getByText("AI career profile builder")).toBeTruthy();
-    expect(screen.getByText("TypeScript")).toBeTruthy();
+    expect(screen.getAllByText("TypeScript").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getByText("Tech stack")).toBeTruthy();
+    expect(screen.getByText("Next.js")).toBeTruthy();
+    expect(screen.getByText("React")).toBeTruthy();
     expect(screen.getByText("nextjs")).toBeTruthy();
     expect(screen.getByText("12 stars")).toBeTruthy();
     expect(screen.getByText("Built an AI career profile builder.")).toBeTruthy();

@@ -1,7 +1,8 @@
 "use client";
 
 import { AlertCircle, Loader2, Plus, Trash2, X } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { ProfileResults, type GitHubProjectSummary } from "./profile-results";
 import type { CareerProfile } from "../lib/profile-schema";
 import type { ResumeSections } from "../lib/sections";
@@ -27,7 +28,12 @@ type Experience = {
   summary: string;
 };
 
-export function ProfileForm() {
+type ProfileFormProps = {
+  onSaveProfile?: (formData: Record<string, unknown>, profile: Record<string, unknown>, githubProjects: unknown[]) => void;
+};
+
+export function ProfileForm({ onSaveProfile }: ProfileFormProps = {}) {
+  const router = useRouter();
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -49,8 +55,82 @@ export function ProfileForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [githubProjects, setGithubProjects] = useState<GitHubProjectSummary[]>([]);
-  const [githubError, setGithubError] = useState<string | null>(null);
-  const [isGithubLoading, setIsGithubLoading] = useState(false);
+
+  useEffect(() => {
+    const hasAnyFormData = (data: typeof formData) => {
+      return Boolean(
+        data.name ||
+          data.email ||
+          data.linkedIn ||
+          data.github ||
+          data.skills.length ||
+          data.interests ||
+          data.targetRoles ||
+          data.education.length ||
+          data.experience.length
+      );
+    };
+
+    const prefillFromLatestProfile = async () => {
+      if (hasAnyFormData(formData)) {
+        return;
+      }
+
+      try {
+        const response = await fetch("/api/my-profiles");
+        if (!response.ok) {
+          return;
+        }
+
+        const payload = await response.json();
+        const latestProfile = payload?.profiles?.[0];
+        if (!latestProfile) {
+          return;
+        }
+
+        setFormData((prev) =>
+          hasAnyFormData(prev)
+            ? prev
+            : {
+                ...prev,
+                name: latestProfile.name ?? "",
+                email: latestProfile.email ?? "",
+                linkedIn: latestProfile.linkedin ?? "",
+                github: latestProfile.github ?? "",
+                skills: Array.isArray(latestProfile.skills) ? latestProfile.skills : [],
+                interests: latestProfile.interests ?? "",
+                targetRoles: latestProfile.targetRoles ?? "",
+                education: Array.isArray(latestProfile.education) ? latestProfile.education : [],
+                experience: Array.isArray(latestProfile.experience) ? latestProfile.experience : [],
+              }
+        );
+
+        if (Array.isArray(latestProfile.githubProjects)) {
+          setGithubProjects(latestProfile.githubProjects);
+        }
+      } catch {
+        // No-op: prefill is best-effort only.
+      }
+    };
+
+    void prefillFromLatestProfile();
+  }, [formData]);
+
+  // Listen for save event from dashboard header
+  const handleSaveEvent = useCallback(() => {
+    if (result && onSaveProfile) {
+      onSaveProfile(
+        formData as unknown as Record<string, unknown>,
+        result.profile as unknown as Record<string, unknown>,
+        githubProjects as unknown[]
+      );
+    }
+  }, [result, formData, githubProjects, onSaveProfile]);
+
+  useEffect(() => {
+    window.addEventListener("careeros:save-profile", handleSaveEvent);
+    return () => window.removeEventListener("careeros:save-profile", handleSaveEvent);
+  }, [handleSaveEvent]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -140,7 +220,7 @@ export function ProfileForm() {
     });
   };
 
-  const analyzeProfile = async () => {
+  const buildProfile = async () => {
     if (!formData.name.trim()) {
       setError("Please enter your name.");
       return;
@@ -160,49 +240,52 @@ export function ProfileForm() {
       const payload = await response.json();
 
       if (!response.ok) {
-        setError(payload.error ?? "Profile analysis failed.");
+        setError(payload.error ?? "Profile building failed.");
         return;
       }
 
-      setResult(payload);
+      // Fetch GitHub projects if GitHub URL is provided
+      let projectsToDisplay = payload.githubProjects || [];
+      if (formData.github.trim()) {
+        try {
+          const projectsResponse = await fetch("/api/projects-summary", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ githubUrl: formData.github.trim() })
+          });
+
+          const projectsPayload = await projectsResponse.json();
+          if (projectsResponse.ok && Array.isArray(projectsPayload.projects)) {
+            projectsToDisplay = projectsPayload.projects;
+            setGithubProjects(projectsToDisplay);
+          }
+        } catch {
+          // If GitHub projects fetching fails, continue with response data
+          console.warn("Failed to fetch GitHub projects");
+        }
+      }
+
+      // Store result in sessionStorage and navigate to results page
+      const resultData = {
+        rawText: payload.rawText,
+        sections: payload.sections,
+        profile: payload.profile,
+        githubProjects: projectsToDisplay,
+        profileId: payload.profileId
+      };
+      
+      sessionStorage.setItem("profileAnalysisResult", JSON.stringify(resultData));
+      
+      // Navigate to profile results page
+      router.push("/profile-results");
     } catch {
-      setError("Profile analysis failed. Check your connection and try again.");
+      setError("Profile building failed. Check your connection and try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const fetchGitHubProjects = async () => {
-    if (!formData.github.trim()) {
-      setGithubError("Enter a GitHub profile URL first.");
-      return;
-    }
 
-    setIsGithubLoading(true);
-    setGithubError(null);
-    setGithubProjects([]);
-
-    try {
-      const response = await fetch("/api/projects-summary", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ githubUrl: formData.github.trim() })
-      });
-
-      const payload = await response.json();
-
-      if (!response.ok) {
-        setGithubError(payload.error ?? "GitHub project extraction failed.");
-        return;
-      }
-
-      setGithubProjects(Array.isArray(payload.projects) ? payload.projects : []);
-    } catch {
-      setGithubError("GitHub project extraction failed. Check your connection and try again.");
-    } finally {
-      setIsGithubLoading(false);
-    }
-  };
 
   return (
     <div className="mx-auto grid max-w-7xl gap-6 px-6 py-8 lg:grid-cols-[380px_1fr]">
@@ -274,22 +357,7 @@ export function ProfileForm() {
                 className="input-field"
                 style={{ marginTop: 6 }}
               />
-              <button
-                className="btn-primary"
-                disabled={isGithubLoading}
-                onClick={fetchGitHubProjects}
-                type="button"
-                style={{ marginTop: 10, height: 40, fontSize: 13 }}
-              >
-                {isGithubLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                <span>{isGithubLoading ? "Fetching GitHub Projects" : "Fetch GitHub Projects"}</span>
-              </button>
-              {githubError ? (
-                <div className="error-banner" style={{ marginTop: 10 }}>
-                  <AlertCircle className="h-4 w-4" />
-                  <span>{githubError}</span>
-                </div>
-              ) : null}
+
             </div>
 
             <div>
@@ -326,12 +394,12 @@ export function ProfileForm() {
           <button
             className="btn-primary"
             disabled={isLoading}
-            onClick={analyzeProfile}
+            onClick={buildProfile}
             type="button"
             style={{ marginTop: 20 }}
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            <span>{isLoading ? "Analyzing…" : "Analyze Profile"}</span>
+            <span>{isLoading ? "Building…" : "Build Profile"}</span>
           </button>
 
           {error ? (

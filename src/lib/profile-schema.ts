@@ -15,13 +15,13 @@ const RoleAlignmentScoreSchema = z.preprocess((value) => {
 
 export const SkillSchema = z.object({
   name: z.string().min(1),
-  evidence: EvidenceString
+  evidence: EvidenceString.optional().catch(undefined)
 });
 
 export const InferredSkillSchema = z.object({
   name: z.string().min(1),
   confidence: z.enum(["low", "medium", "high"]),
-  rationale: z.string().min(1),
+  rationale: z.string().min(1).optional().catch(undefined),
   evidence: EvidenceString.optional().catch(undefined)
 });
 
@@ -30,7 +30,7 @@ export const TechnicalDepthSchema = z.object({
   level: z.string()
     .transform((val) => typeof val === "string" ? val.trim().toLowerCase() : val)
     .pipe(z.enum(["foundational", "intermediate", "advanced", "expert"])),
-  rationale: z.string().min(1),
+  rationale: z.string().min(1).optional().catch(undefined),
   evidence: EvidenceString.optional().catch(undefined)
 });
 
@@ -103,7 +103,7 @@ export const CareerProfileSchema = z.object({
       z.object({
         role: z.string().min(1),
         score: RoleAlignmentScoreSchema,
-        rationale: z.string().min(1),
+        rationale: z.string().min(1).optional().catch(undefined),
         strengths: z.array(z.string()).default([]),
         gaps: z.array(z.string()).default([])
       })

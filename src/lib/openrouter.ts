@@ -245,30 +245,51 @@ export async function analyzeResumeWithOpenRouter(
 
 export type ProjectSummary = {
   title: string;
+  techStack: string[];
   atsPoints: string[];
 };
 
 export async function generateProjectSummaries(
-  projects: Array<{ name: string; description: string | null; language: string | null; topics: string[] }>
+  projects: Array<{
+    name: string;
+    description: string | null;
+    language: string | null;
+    topics: string[];
+    url?: string;
+    stars?: number;
+    detectedTech?: string[];
+  }>
 ): Promise<ProjectSummary[]> {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new OpenRouterError("OPENROUTER_API_KEY is not configured.");
   }
 
-  const prompt = `You are an ATS (Applicant Tracking System) optimization expert. Convert the following GitHub projects into ATS-friendly bullet points.
+  const prompt = `You are an ATS (Applicant Tracking System) optimization expert and technical project storyteller. Convert the following GitHub projects into detailed, ATS-friendly bullet points that clearly explain the crux of each project.
 
-For each project, create 3-4 concise, achievement-oriented bullet points that:
-- Highlight technical skills and impact
-- Use action verbs (Built, Developed, Implemented, Designed, etc.)
-- Focus on measurable outcomes and capabilities
-- Include relevant technologies
-- Are scannable and keyword-rich
+For each project, create 4-5 detailed, achievement-oriented bullet points. Each bullet should be 22-35 words and must make the project understandable without needing to open the repository.
+
+The bullets for each project should collectively explain:
+- The core problem, user need, or workflow the project solves
+- The main system design, architecture, modules, or data flow
+- The implementation work, including APIs, algorithms, integrations, UI, backend, database, automation, or testing where relevant
+- The technologies, language, libraries, and technical concepts visible from the repository metadata
+- The practical outcome, capability, performance benefit, or user/business impact
+
+Writing rules:
+- Use strong action verbs such as Built, Developed, Implemented, Designed, Integrated, Automated, Optimized, or Tested
+- Be specific and explanatory instead of generic; avoid vague lines like "worked on a web app"
+- Infer only from the supplied project metadata; do not invent metrics, users, companies, deployments, or features not supported by the data
+- If metadata is sparse, describe the likely technical scope carefully and say what the repository demonstrates rather than fabricating details
+- Keep bullets scannable, keyword-rich, and resume-ready while still explaining the project's purpose and technical substance
+- Return a normalized techStack array for each project using only technologies supported by language, topics, descriptions, detectedTech, or other supplied metadata
+- Prefer canonical names such as "React", "Next.js", "TypeScript", "Tailwind CSS", "Node.js", "MongoDB", "Supabase", "Python", or "FastAPI"
 
 Return ONLY valid JSON in this exact format (no markdown, no extra text):
 [
   {
     "title": "Project Name",
+    "techStack": ["Technology 1", "Technology 2"],
     "atsPoints": [
       "Bullet point 1",
       "Bullet point 2",
@@ -365,13 +386,14 @@ ${JSON.stringify(projects, null, 2)}`;
       throw new OpenRouterError("Invalid project summary structure.");
     }
 
-    const { title, atsPoints } = item as Record<string, unknown>;
+    const { title, techStack, atsPoints } = item as Record<string, unknown>;
     if (typeof title !== "string" || !Array.isArray(atsPoints)) {
       throw new OpenRouterError("Invalid project summary data types.");
     }
 
     return {
       title,
+      techStack: Array.isArray(techStack) ? techStack.map((tech: unknown) => String(tech)) : [],
       atsPoints: atsPoints.map((point: unknown) => String(point))
     };
   });

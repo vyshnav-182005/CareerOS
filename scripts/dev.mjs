@@ -56,10 +56,14 @@ function probeServer(onReady, onMissing) {
 
 probeServer(
   () => {
+    console.log(`✓ Next.js server already running at ${browserUrl}`);
+    console.log(`- Local:   ${browserUrl}`);
+    console.log(`- Network: http://${url.hostname}:${url.port}`);
     openExternalBrowser();
     process.exit(0);
   },
   () => {
+    console.log("Starting Next.js development server...");
     const devProcess = spawn(process.execPath, [nextBin, "dev"], {
       cwd: join(scriptDir, ".."),
       stdio: "inherit"
@@ -69,6 +73,7 @@ probeServer(
       probeServer(
         () => {
           clearInterval(poll);
+          console.log(`\n✓ Next.js server is ready at ${browserUrl}`);
           openExternalBrowser();
         },
         () => {

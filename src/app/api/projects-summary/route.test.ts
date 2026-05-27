@@ -33,7 +33,8 @@ const repos = [
     description: "AI career profile builder",
     language: "TypeScript",
     stars: 12,
-    topics: ["nextjs", "ats"]
+    topics: ["nextjs", "ats"],
+    detectedTech: ["TypeScript", "Next.js"]
   },
   {
     name: "api-lab",
@@ -41,17 +42,20 @@ const repos = [
     description: null,
     language: "Python",
     stars: 2,
-    topics: []
+    topics: [],
+    detectedTech: ["Python", "FastAPI"]
   }
 ];
 
 const summaries = [
   {
     title: "career-os",
+    techStack: ["TypeScript", "Next.js", "React"],
     atsPoints: ["Built an AI career profile builder.", "Implemented ATS project summaries."]
   },
   {
     title: "api-lab",
+    techStack: ["Python", "FastAPI"],
     atsPoints: ["Developed API experiments in Python."]
   }
 ];
@@ -83,7 +87,8 @@ describe("POST /api/projects-summary", () => {
         description: "AI career profile builder",
         language: "TypeScript",
         stars: 12,
-        topics: ["nextjs", "ats"]
+        topics: ["nextjs", "ats"],
+        detectedTech: ["TypeScript", "Next.js"]
       },
       {
         name: "api-lab",
@@ -91,7 +96,8 @@ describe("POST /api/projects-summary", () => {
         description: "No description provided",
         language: "Python",
         stars: 2,
-        topics: []
+        topics: [],
+        detectedTech: ["Python", "FastAPI"]
       }
     ]);
     expect(body.projects).toEqual([
@@ -102,6 +108,7 @@ describe("POST /api/projects-summary", () => {
         language: "TypeScript",
         topics: ["nextjs", "ats"],
         stars: 12,
+        techStack: ["TypeScript", "Next.js", "React"],
         atsPoints: ["Built an AI career profile builder.", "Implemented ATS project summaries."]
       },
       {
@@ -111,6 +118,7 @@ describe("POST /api/projects-summary", () => {
         language: "Python",
         topics: [],
         stars: 2,
+        techStack: ["Python", "FastAPI"],
         atsPoints: ["Developed API experiments in Python."]
       }
     ]);
