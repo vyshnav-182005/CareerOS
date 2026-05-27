@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, FileText, Share2 } from "lucide-react";
 import type { CareerProfile } from "../../lib/profile-schema";
@@ -18,22 +18,24 @@ interface ResultData {
 
 export default function ProfileResultsPage() {
   const router = useRouter();
-  const [result, setResult] = useState<ResultData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    // Retrieve result from sessionStorage
-    const storedResult = sessionStorage.getItem("profileAnalysisResult");
-    if (storedResult) {
-      try {
-        const data = JSON.parse(storedResult);
-        setResult(data);
-      } catch (error) {
-        console.error("Failed to parse stored result:", error);
-      }
+  const [result] = useState<ResultData | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
     }
-    setIsLoading(false);
-  }, []);
+
+    const storedResult = sessionStorage.getItem("profileAnalysisResult");
+    if (!storedResult) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(storedResult);
+    } catch (error) {
+      console.error("Failed to parse stored result:", error);
+      return null;
+    }
+  });
+  const isLoading = false;
 
   if (isLoading) {
     return (
