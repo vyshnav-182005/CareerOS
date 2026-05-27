@@ -46,36 +46,6 @@ startxref
 
 describe("POST /api/parse-resume integration", () => {
   it("parses a text PDF and returns OpenRouter analysis", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        return Response.json({
-          choices: [
-            {
-              message: {
-                content: JSON.stringify({
-                  candidate: { name: "Asha", headline: null, contacts: [], location: null, links: [] },
-                  executiveSummary: "Full-stack engineer with React experience.",
-                  explicitSkills: [{ name: "React", evidence: "SKILLS React" }],
-                  inferredSkills: [],
-                  technicalDepth: [],
-                  experience: [],
-                  projects: [],
-                  education: [],
-                  roleAlignment: [],
-                  strengths: [],
-                  gaps: [],
-                  recommendations: [],
-                  evidence: [{ id: "e1", section: "skills", snippet: "React TypeScript Node.js" }]
-                })
-              }
-            }
-          ]
-        });
-      })
-    );
-
     const form = new FormData();
     form.append("resume", new File([samplePdf], "resume.pdf", { type: "application/pdf" }));
 
@@ -86,6 +56,6 @@ describe("POST /api/parse-resume integration", () => {
 
     expect(response.status).toBe(200);
     expect(body.sections.summary).toContain("Full-stack engineer");
-    expect(body.profile.explicitSkills[0].name).toBe("React");
+    expect(body.profile.explicitSkills[0].name).toContain("React TypeScript Node.js PostgreSQL");
   });
 });
