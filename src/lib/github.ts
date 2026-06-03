@@ -124,6 +124,7 @@ export type UserProject = {
   language: string | null;
   stars: number;
   topics: string[];
+  readme: string;
   detectedTech: string[];
 };
 
@@ -154,23 +155,36 @@ export async function fetchGitHubUserProjects(username: string): Promise<UserPro
     if (repos.length === 0) {
       hasMore = false;
     } else {
-      projects.push(
-        ...repos.map((repo) => ({
+      for (const repo of repos) {
+        let readme = "";
+        try {
+          readme = await fetchReadme(username, repo.name);
+        } catch (error) {
+          console.warn("Failed to fetch README", {
+            repo: repo.name,
+            message: error instanceof Error ? error.message : String(error)
+          });
+        }
+
+        const trimmedReadme = trimReadme(readme);
+
+        projects.push({
           name: repo.name,
           url: repo.html_url,
           description: repo.description,
           language: repo.language,
           stars: repo.stargazers_count,
           topics: repo.topics ?? [],
+          readme: trimmedReadme,
           detectedTech: detectTech({
             language: repo.language,
             topics: repo.topics ?? [],
             description: repo.description,
             homepage: repo.homepage,
-            readme: ""
+            readme: trimmedReadme
           })
-        }))
-      );
+        });
+      }
       page++;
     }
   }
@@ -199,6 +213,15 @@ async function fetchReadme(owner: string, repo: string): Promise<string> {
   }
 
   return Buffer.from(readme.content.replace(/\n/g, ""), "base64").toString("utf8");
+}
+
+function trimReadme(readme: string, maxLength = 4000): string {
+  if (!readme) return "";
+  const normalized = readme.replace(/\r\n/g, "\n").trim();
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+  return `${normalized.slice(0, maxLength)}\n...[truncated]`;
 }
 
 function mapGitHubError(response: Response): GitHubRepositoryError {

@@ -45,6 +45,7 @@ export async function POST(request: Request) {
       name: project.name,
       url: project.url,
       description: project.description || "No description provided",
+      readme: project.readme,
       language: project.language || "Not specified",
       stars: project.stars,
       topics: project.topics,

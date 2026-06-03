@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, FileText, Share2 } from "lucide-react";
 import type { CareerProfile } from "../../lib/profile-schema";
 import type { ResumeSections } from "../../lib/sections";
 import type { GitHubProjectSummary } from "../../components/profile-results";
+import type { ProfileSummary } from "../../lib/profile-summary";
 import { normalizeTextBlock } from "../../lib/text";
 
 interface ResultData {
@@ -14,28 +15,31 @@ interface ResultData {
   profile: CareerProfile;
   githubProjects?: GitHubProjectSummary[];
   profileId?: string;
+  profileSummary?: ProfileSummary;
 }
 
 export default function ProfileResultsPage() {
   const router = useRouter();
-  const [result] = useState<ResultData | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
+  const [result, setResult] = useState<ResultData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
+  useEffect(() => {
     const storedResult = sessionStorage.getItem("profileAnalysisResult");
     if (!storedResult) {
-      return null;
+      setResult(null);
+      setIsLoading(false);
+      return;
     }
 
     try {
-      return JSON.parse(storedResult);
+      setResult(JSON.parse(storedResult));
     } catch (error) {
       console.error("Failed to parse stored result:", error);
-      return null;
+      setResult(null);
+    } finally {
+      setIsLoading(false);
     }
-  });
-  const isLoading = false;
+  }, []);
 
   if (isLoading) {
     return (

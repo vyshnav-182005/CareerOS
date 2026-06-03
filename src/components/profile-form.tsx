@@ -271,7 +271,8 @@ export function ProfileForm({ onSaveProfile }: ProfileFormProps = {}) {
         sections: payload.sections,
         profile: payload.profile,
         githubProjects: projectsToDisplay,
-        profileId: payload.profileId
+        profileId: payload.profileId,
+        profileSummary: payload.profileSummary
       };
       
       sessionStorage.setItem("profileAnalysisResult", JSON.stringify(resultData));

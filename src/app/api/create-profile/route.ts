@@ -4,6 +4,7 @@ import { connectDB } from "../../../lib/mongodb";
 import { CareerProfileModel } from "../../../models/career-profile";
 import { fetchGitHubUserProjects } from "../../../lib/github";
 import { generateProjectSummaries } from "../../../lib/openrouter";
+import { runProfileSummaryPipeline } from "../../../lib/langchain";
 import mongoose from "mongoose";
 
 export const runtime = "nodejs";
@@ -80,6 +81,10 @@ export async function POST(request: Request) {
       links.push(formData.github.trim());
     }
 
+    const experience = Array.isArray(formData.experience)
+      ? formData.experience
+      : [];
+
     const profileData = {
       candidate: {
         name: formData.name || null,
@@ -97,7 +102,13 @@ export async function POST(request: Request) {
         confidence: "medium" as const,
       })),
       technicalDepth: [],
-      experience: [],
+      experience: experience.map((item: any) => ({
+        title: typeof item?.title === "string" ? item.title : null,
+        organization: typeof item?.organization === "string" ? item.organization : null,
+        dates: typeof item?.dates === "string" ? item.dates : null,
+        summary: typeof item?.summary === "string" ? item.summary : null,
+        outcomes: []
+      })),
       projects: [],
       education: (formData.education || []).map((edu: any) => ({
         institution: edu.institution || null,
@@ -141,6 +152,7 @@ export async function POST(request: Request) {
             name: project.name,
             url: project.url,
             description: project.description || "No description provided",
+            readme: project.readme,
             language: project.language || "Not specified",
             stars: project.stars,
             topics: project.topics,
@@ -170,6 +182,21 @@ export async function POST(request: Request) {
       // Continue without projects if fetch fails
     }
 
+    let profileSummary = undefined;
+    try {
+      profileSummary = await runProfileSummaryPipeline({
+        profile: displayProfile,
+        githubProjects: githubProjects.map((project) => ({
+          title: project.title,
+          description: project.description,
+          techStack: project.techStack,
+          atsPoints: project.atsPoints
+        }))
+      });
+    } catch (error) {
+      console.error("Profile summary generation failed:", error);
+    }
+
     // Upsert: Update if exists (same name and userId), create if new
     const careerProfile = await CareerProfileModel.findOneAndUpdate(
       { userId, name: formData.name },
@@ -193,6 +220,7 @@ export async function POST(request: Request) {
       profile: displayProfile,
       profileId: careerProfile._id,
       githubProjects,
+      profileSummary,
       message: "Profile saved to database successfully",
     });
   } catch (error) {
