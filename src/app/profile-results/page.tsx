@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, FileText, Share2 } from "lucide-react";
 import type { CareerProfile } from "../../lib/profile-schema";
@@ -20,26 +20,38 @@ interface ResultData {
 
 export default function ProfileResultsPage() {
   const router = useRouter();
-  const [result, setResult] = useState<ResultData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const PENDING = "__pending__";
+  const storedResult = useSyncExternalStore(
+    (callback) => {
+      if (typeof window === "undefined") {
+        return () => {};
+      }
+      window.addEventListener("storage", callback);
+      return () => window.removeEventListener("storage", callback);
+    },
+    () => {
+      if (typeof window === "undefined") {
+        return PENDING;
+      }
+      return sessionStorage.getItem("profileAnalysisResult");
+    },
+    () => PENDING
+  );
 
-  useEffect(() => {
-    const storedResult = sessionStorage.getItem("profileAnalysisResult");
-    if (!storedResult) {
-      setResult(null);
-      setIsLoading(false);
-      return;
+  const result = useMemo<ResultData | null>(() => {
+    if (!storedResult || storedResult === PENDING) {
+      return null;
     }
 
     try {
-      setResult(JSON.parse(storedResult));
+      return JSON.parse(storedResult) as ResultData;
     } catch (error) {
       console.error("Failed to parse stored result:", error);
-      setResult(null);
-    } finally {
-      setIsLoading(false);
+      return null;
     }
-  }, []);
+  }, [storedResult, PENDING]);
+
+  const isLoading = storedResult === PENDING;
 
   if (isLoading) {
     return (

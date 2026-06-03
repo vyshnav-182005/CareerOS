@@ -182,6 +182,7 @@ describe("fetchGitHubUserProjects", () => {
           }
         ])
       )
+      .mockResolvedValueOnce(jsonResponse({ message: "Not Found" }, 404))
       .mockResolvedValueOnce(jsonResponse([]));
 
     const projects = await fetchGitHubUserProjects("vyshn");
