@@ -1,4 +1,4 @@
 export { getOpenRouterChatModel } from "./llm";
-export { runProfileSummaryPipeline } from "./pipeline";
+export { runJobSearchPipeline, runProfileSummaryPipeline, runResumeBuilderPipeline } from "./pipeline";
 export * from "./schemas";
 export * from "./agents";

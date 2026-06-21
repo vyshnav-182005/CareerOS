@@ -4,6 +4,7 @@ import { useMemo, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Download, FileText, Share2 } from "lucide-react";
 import type { CareerProfile } from "../../lib/profile-schema";
+import type { JobPosting } from "../../lib/job-search";
 import type { ResumeSections } from "../../lib/sections";
 import type { GitHubProjectSummary } from "../../components/profile-results";
 import type { ProfileSummary } from "../../lib/profile-summary";
@@ -103,7 +104,7 @@ export default function ProfileResultsPage() {
     );
   }
 
-  const { profile, sections, githubProjects = [], profileId } = result;
+  const { profile, sections, githubProjects = [], profileId, jobs = [] as JobPosting[] } = result as any;
 
   return (
     <main style={{ padding: "40px 24px", maxWidth: 1200, margin: "0 auto", minHeight: "100vh" }}>
@@ -195,6 +196,32 @@ export default function ProfileResultsPage() {
       )}
 
       {/* Main Content */}
+        {/* Job Matches */}
+        {jobs && jobs.length > 0 && (
+          <section style={{ marginTop: 32 }}>
+            <p className="section-label">💼 Job Matches</p>
+            <div className="job-grid" style={{ display: 'grid', gap: 24, gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
+              {jobs.map((job: JobPosting, i: number) => (
+                <div key={i} className="glass-card job-card" style={{ padding: 20, position: 'relative' }}>
+                  <h3 style={{ margin: 0, color: 'var(--accent-cyan)' }}>{job.title}</h3>
+                  <p style={{ margin: '4px 0', color: 'var(--text-secondary)' }}>{job.company} • {job.location}</p>
+                  <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxHeight: 80, overflow: 'hidden' }}>
+                    {job.description?.slice(0, 200)}…
+                  </p>
+                  <a href={job.applicationUrl || job.sourceUrl}
+                     target="_blank"
+                     rel="noopener noreferrer"
+                     style={{ marginTop: 8, display: 'inline-block', color: 'var(--accent-emerald)' }}>
+                    Apply →
+                  </a>
+                  <div style={{ position: 'absolute', bottom: 8, right: 8, fontSize: 10, opacity: 0.6 }}>
+                    Powered by JSearch
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
       <section style={{ display: "flex", flexDirection: "column", gap: 24 }}>
         {/* Candidate Details */}
         {profile && (
@@ -217,7 +244,7 @@ export default function ProfileResultsPage() {
                 <div>
                   <DetailLabel>Email</DetailLabel>
                   <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {profile.candidate.contacts.map((contact) => (
+                    {profile.candidate.contacts.map((contact: string, idx: number) => (
                       <span key={contact} className="info-chip">
                         {contact}
                       </span>
@@ -225,11 +252,11 @@ export default function ProfileResultsPage() {
                   </div>
                 </div>
               ) : null}
-              {profile.candidate.links.filter((link) => !link.includes("@")).length > 0 ? (
+              {((profile.candidate.links.filter((link: string) => !link.includes("@")) as string[]).length > 0) ? (
                 <div>
                   <DetailLabel>Links</DetailLabel>
                   <div style={{ marginTop: 6, display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {profile.candidate.links.filter((link) => !link.includes("@")).map((link) => (
+                    {(profile.candidate.links.filter((link: string) => !link.includes("@")) as string[]).map((link: string, idx: number) => (
                       <a
                         key={link}
                         href={link}
@@ -247,7 +274,7 @@ export default function ProfileResultsPage() {
                 <div>
                   <DetailLabel>Education</DetailLabel>
                   <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 10 }}>
-                    {profile.education.map((edu, index) => (
+                    {profile.education.map((edu: any, index: number) => (
                       <div key={index} style={{ padding: 12, backgroundColor: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
                         {edu.institution ? (
                           <p style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
@@ -273,7 +300,7 @@ export default function ProfileResultsPage() {
                 <div>
                   <DetailLabel>Skills</DetailLabel>
                   <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                    {profile.explicitSkills.map((skill) => (
+                    {profile.explicitSkills.map((skill: any, idx: number) => (
                       <span key={skill.name} className="skill-chip" style={{ padding: "8px 12px", borderRadius: "6px", background: "rgba(52, 211, 153, 0.1)", color: "var(--accent-emerald)", fontSize: 14, fontWeight: 500 }}>
                         {skill.name}
                       </span>
@@ -292,7 +319,7 @@ export default function ProfileResultsPage() {
           <div className="glass-card result-card" style={{ animation: "fadeInUp 0.55s ease both" }}>
             <p className="section-label">🚀 GitHub Projects</p>
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 16 }}>
-              {githubProjects.map((project, idx) => (
+              {githubProjects.map((project: any, idx: number) => (
                 <div
                   key={idx}
                   style={{
@@ -361,7 +388,7 @@ export default function ProfileResultsPage() {
                         Tech stack:
                       </p>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                        {project.techStack.map((tech) => (
+                        {project.techStack.map((tech: string) => (
                           <span key={`${project.title}-${tech}`} className="info-chip">
                             {tech}
                           </span>
@@ -375,7 +402,7 @@ export default function ProfileResultsPage() {
                         ATS-Friendly Points:
                       </p>
                       <ul style={{ marginLeft: 20, display: "flex", flexDirection: "column", gap: 6 }}>
-                        {project.atsPoints.map((point, i) => (
+                        {project.atsPoints.map((point: string, i: number) => (
                           <li key={i} style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>
                             {point}
                           </li>

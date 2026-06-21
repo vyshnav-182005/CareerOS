@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GitHubRepositoryError } from "../../../lib/github";
 import { OpenRouterError } from "../../../lib/openrouter";
+import { fetchGitHubUserProjects } from "../../../lib/github";
+import { generateProjectSummaries } from "../../../lib/openrouter";
+import { POST } from "./route";
 
 vi.mock("../../../lib/github", async () => {
   const actual = await vi.importActual<typeof import("../../../lib/github")>("../../../lib/github");
@@ -22,9 +25,7 @@ vi.mock("../../../lib/openrouter", async () => {
   };
 });
 
-import { fetchGitHubUserProjects } from "../../../lib/github";
-import { generateProjectSummaries } from "../../../lib/openrouter";
-import { POST } from "./route";
+
 
 const repos = [
   {
@@ -34,7 +35,8 @@ const repos = [
     language: "TypeScript",
     stars: 12,
     topics: ["nextjs", "ats"],
-    detectedTech: ["TypeScript", "Next.js"]
+    detectedTech: ["TypeScript", "Next.js"],
+    readme: ""
   },
   {
     name: "api-lab",
@@ -43,7 +45,8 @@ const repos = [
     language: "Python",
     stars: 2,
     topics: [],
-    detectedTech: ["Python", "FastAPI"]
+    detectedTech: ["Python", "FastAPI"],
+    readme: ""
   }
 ];
 
@@ -88,7 +91,8 @@ describe("POST /api/projects-summary", () => {
         language: "TypeScript",
         stars: 12,
         topics: ["nextjs", "ats"],
-        detectedTech: ["TypeScript", "Next.js"]
+        detectedTech: ["TypeScript", "Next.js"],
+        readme: ""
       },
       {
         name: "api-lab",
@@ -97,7 +101,8 @@ describe("POST /api/projects-summary", () => {
         language: "Python",
         stars: 2,
         topics: [],
-        detectedTech: ["Python", "FastAPI"]
+        detectedTech: ["Python", "FastAPI"],
+        readme: ""
       }
     ]);
     expect(body.projects).toEqual([

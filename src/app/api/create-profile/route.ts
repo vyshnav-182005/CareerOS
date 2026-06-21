@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "../../../lib/auth-options";
 import { CareerProfileSchema } from "../../../lib/profile-schema";
 import { connectDB } from "../../../lib/mongodb";
 import { CareerProfileModel } from "../../../models/career-profile";
@@ -22,6 +24,16 @@ type GitHubProjectSummary = {
 
 export async function POST(request: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const sessionUserId = (session.user as Record<string, unknown>).id;
+    if (typeof sessionUserId !== "string" || !mongoose.Types.ObjectId.isValid(sessionUserId)) {
+      return NextResponse.json({ error: "User ID not found in session" }, { status: 401 });
+    }
+
     const formData = await request.json();
 
     // Validate required fields
@@ -134,11 +146,7 @@ export async function POST(request: Request) {
     // Connect to database and save simplified profile
     await connectDB();
 
-    // Generate a valid MongoDB ObjectId for userId if not provided
-    // In production, this should come from NextAuth session
-    const userId = formData.userId
-      ? new mongoose.Types.ObjectId(formData.userId)
-      : new mongoose.Types.ObjectId();
+    const userId = new mongoose.Types.ObjectId(sessionUserId);
 
     // Fetch GitHub projects
     let githubProjects: GitHubProjectSummary[] = [];

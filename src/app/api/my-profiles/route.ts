@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "../../../lib/auth-options";
 import { connectDB } from "../../../lib/mongodb";
 import { CareerProfileModel } from "../../../models/career-profile";
+import { User } from "../../../models/user";
 import mongoose from "mongoose";
 
 export async function GET() {
@@ -30,6 +31,30 @@ export async function GET() {
 
     // Ensure userId is properly cast to ObjectId for the query
     const objectId = new mongoose.Types.ObjectId(userId);
+    const sessionEmail = session.user.email?.trim();
+
+    if (sessionEmail) {
+      const emailMatcher = new RegExp(`^${escapeRegExp(sessionEmail)}$`, "i");
+      const legacyProfileUserIds = await CareerProfileModel.distinct("userId", {
+        email: emailMatcher,
+        userId: { $ne: objectId },
+      });
+      const existingUserIds = await User.distinct("_id", {
+        _id: { $in: legacyProfileUserIds },
+      });
+      const existingUserIdSet = new Set(existingUserIds.map((id) => id.toString()));
+      const orphanUserIds = legacyProfileUserIds.filter(
+        (id) => !existingUserIdSet.has(id.toString())
+      );
+
+      await CareerProfileModel.updateMany(
+        {
+          email: emailMatcher,
+          userId: { $in: orphanUserIds },
+        },
+        { $set: { userId: objectId } }
+      );
+    }
 
     const profiles = await CareerProfileModel.find({ userId: objectId })
       .sort({ createdAt: -1 })
@@ -55,3 +80,6 @@ export async function GET() {
   }
 }
 
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}

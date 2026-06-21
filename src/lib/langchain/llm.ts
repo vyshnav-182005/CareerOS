@@ -1,6 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
 
-export function getOpenRouterChatModel(temperature = 0.2): ChatOpenAI {
+export function getOpenRouterChatModel(temperature = 0.2, maxTokens = 8192): ChatOpenAI {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
     throw new Error("OPENROUTER_API_KEY is not configured.");
@@ -14,6 +14,7 @@ export function getOpenRouterChatModel(temperature = 0.2): ChatOpenAI {
     apiKey,
     model: process.env.OPENROUTER_MODEL ?? "openai/gpt-4-mini",
     temperature,
+    maxTokens,
     configuration: {
       baseURL,
       defaultHeaders: {

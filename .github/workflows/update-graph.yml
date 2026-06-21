@@ -1,0 +1,55 @@
+name: Update Graph
+
+on:
+  push:
+    paths-ignore:
+      - "graphify-out/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-graph-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  update-graph:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Regenerate graph
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        run: |
+          if [ -f graphify-out/manifest.json ] && [ -f graphify-out/graph.json ]; then
+            uvx --from graphifyy graphify . --update
+          else
+            uvx --from graphifyy graphify .
+          fi
+
+      - name: Commit graph changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          rm -f graphify-out/.graphify_python graphify-out/.graphify_root
+          git add -f graphify-out
+
+          if git diff --cached --quiet; then
+            echo "No graph changes to commit."
+            exit 0
+          fi
+
+          git commit -m "chore: update graph"
+          git push

@@ -13,6 +13,15 @@ import {
   Star,
   Tag,
   Calendar,
+  Search,
+  Briefcase,
+  MapPin,
+  Building2,
+  DollarSign,
+  Clock,
+  ArrowRight,
+  FileText,
+  Download,
 } from "lucide-react";
 
 /* Brand icons were removed from lucide-react; inline SVG replacement */
@@ -75,6 +84,32 @@ interface CareerProfile {
   updatedAt: string;
 }
 
+interface JobPosting {
+  title: string;
+  company: string;
+  location: string;
+  remote: boolean;
+  employmentType: string;
+  experienceLevel: string;
+  description: string;
+  requirements: string[];
+  responsibilities: string[];
+  skills: string[];
+  technologies: string[];
+  salaryRange: string;
+  source: string;
+  sourceUrl: string;
+  postedAt: string;
+  applicationUrl: string;
+}
+
+interface JobSearchResult {
+  searchTerms: string[];
+  targetRoles: string[];
+  sources: string[];
+  jobs: JobPosting[];
+}
+
 interface UserSession {
   name?: string | null;
   email?: string | null;
@@ -84,6 +119,17 @@ export function DashboardView({ user }: { user?: UserSession }) {
   const [profiles, setProfiles] = useState<CareerProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Job search state
+  const [jobResults, setJobResults] = useState<Record<string, JobSearchResult>>({});
+  const [jobLoading, setJobLoading] = useState<Record<string, boolean>>({});
+  const [jobErrors, setJobErrors] = useState<Record<string, string>>({});
+  const [expandedJob, setExpandedJob] = useState<string | null>(null);
+
+  // Resume builder state
+  const [resumeLoading, setResumeLoading] = useState<Record<string, boolean>>({});
+  const [resumeError, setResumeError] = useState<Record<string, string>>({});
+  const [resumeSuccess, setResumeSuccess] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -122,6 +168,118 @@ export function DashboardView({ user }: { user?: UserSession }) {
 
     fetchProfiles();
   }, []);
+
+  const handleFindJobs = async (profileId: string, forceRefresh = false) => {
+    setJobLoading((prev) => ({ ...prev, [profileId]: true }));
+    setJobErrors((prev) => {
+      const next = { ...prev };
+      delete next[profileId];
+      return next;
+    });
+
+    try {
+      const response = await fetch("/api/job-search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ profileId, forceRefresh }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+
+      setJobResults((prev) => ({
+        ...prev,
+        [profileId]: {
+          searchTerms: data.searchTerms ?? [],
+          targetRoles: data.targetRoles ?? [],
+          sources: data.sources ?? [],
+          jobs: data.jobs ?? [],
+        },
+      }));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to search jobs";
+      console.error("✗ Job search failed:", message);
+      setJobErrors((prev) => ({ ...prev, [profileId]: message }));
+    } finally {
+      setJobLoading((prev) => ({ ...prev, [profileId]: false }));
+    }
+  };
+
+  const handleBuildResume = async (
+    profileId: string,
+    job: JobPosting,
+    jobIdx: number
+  ) => {
+    const key = `${profileId}-${jobIdx}`;
+    setResumeLoading((prev) => ({ ...prev, [key]: true }));
+    setResumeError((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    setResumeSuccess((prev) => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
+    try {
+      const response = await fetch("/api/build-resume", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          profileId,
+          jobDescription: job.description || "",
+          jobTitle: job.title || "Unknown Role",
+          companyName: job.company || "Unknown Company",
+        }),
+      });
+
+      // Error responses come back as JSON; success is a PDF binary
+      const contentType = response.headers.get("content-type") || "";
+      if (!response.ok || contentType.includes("application/json")) {
+        const data = await response.json();
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
+
+      // Trigger download of the PDF file
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const safeName = (job.company || "company")
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .substring(0, 30);
+      const safeTitle = (job.title || "resume")
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .substring(0, 30);
+      a.href = url;
+      a.download = `resume_${safeName}_${safeTitle}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      setResumeSuccess((prev) => ({ ...prev, [key]: true }));
+      // Clear success indicator after 5 seconds
+      setTimeout(() => {
+        setResumeSuccess((prev) => {
+          const next = { ...prev };
+          delete next[key];
+          return next;
+        });
+      }, 5000);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to build resume";
+      console.error("✗ Resume build failed:", message);
+      setResumeError((prev) => ({ ...prev, [key]: message }));
+    } finally {
+      setResumeLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  };
 
   if (loading) {
     return (
@@ -453,7 +611,7 @@ export function DashboardView({ user }: { user?: UserSession }) {
 
                 {/* ── GitHub Projects ── */}
                 {profile.githubProjects.length > 0 && (
-                  <div>
+                  <div style={{ marginBottom: 28 }}>
                     <h3
                       style={{
                         fontSize: 15,
@@ -612,6 +770,646 @@ export function DashboardView({ user }: { user?: UserSession }) {
                         </a>
                       ))}
                     </div>
+                  </div>
+                )}
+
+                {/* ── Find Jobs Button ── */}
+                <div
+                  style={{
+                    paddingTop: 20,
+                    borderTop: "1px solid rgba(255,255,255,0.06)",
+                    display: "flex",
+                    gap: 12
+                  }}
+                >
+                  <button
+                    onClick={() => handleFindJobs(profile._id, false)}
+                    disabled={jobLoading[profile._id]}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "12px 24px",
+                      fontSize: 14,
+                      fontWeight: 600,
+                      borderRadius: "var(--radius-md)",
+                      border: "none",
+                      background: jobResults[profile._id]
+                        ? "linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)"
+                        : "linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(6, 182, 212, 0.2) 100%)",
+                      color: "rgb(52, 211, 153)",
+                      cursor: jobLoading[profile._id] ? "not-allowed" : "pointer",
+                      transition: "all 0.3s ease",
+                      opacity: jobLoading[profile._id] ? 0.7 : 1,
+                      boxShadow: jobLoading[profile._id]
+                        ? "none"
+                        : "0 0 20px rgba(52, 211, 153, 0.1)",
+                    }}
+                  >
+                    {jobLoading[profile._id] ? (
+                      <>
+                        <Loader2
+                          style={{
+                            width: 16,
+                            height: 16,
+                            animation: "spin 1s linear infinite",
+                          }}
+                        />
+                        Searching jobs...
+                      </>
+                    ) : jobResults[profile._id] ? (
+                      <>
+                        <Search style={{ width: 16, height: 16 }} />
+                        Update Job Recommendations
+                      </>
+                    ) : (
+                      <>
+                        <Search style={{ width: 16, height: 16 }} />
+                        Find Matching Jobs
+                      </>
+                    )}
+                  </button>
+                  {jobResults[profile._id] && (
+                    <button
+                      onClick={() => handleFindJobs(profile._id, true)}
+                      disabled={jobLoading[profile._id]}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "12px 24px",
+                        fontSize: 14,
+                        fontWeight: 600,
+                        borderRadius: "var(--radius-md)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        background: "rgba(255,255,255,0.02)",
+                        color: "var(--text-secondary)",
+                        cursor: jobLoading[profile._id] ? "not-allowed" : "pointer",
+                        transition: "all 0.3s ease",
+                        opacity: jobLoading[profile._id] ? 0.7 : 1,
+                      }}
+                    >
+                      <Zap style={{ width: 16, height: 16 }} />
+                      Force Refresh
+                    </button>
+                  )}
+                </div>
+
+                {/* ── Job Search Error ── */}
+                {jobErrors[profile._id] && (
+                  <div
+                    style={{
+                      marginTop: 16,
+                      padding: 14,
+                      borderRadius: "var(--radius-md)",
+                      background: "rgba(239, 68, 68, 0.08)",
+                      border: "1px solid rgba(239, 68, 68, 0.2)",
+                      color: "rgb(239, 68, 68)",
+                      fontSize: 13,
+                    }}
+                  >
+                    {jobErrors[profile._id]}
+                  </div>
+                )}
+
+                {/* ── Job Loading Skeleton ── */}
+                {jobLoading[profile._id] && (
+                  <div style={{ marginTop: 24 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        marginBottom: 20,
+                      }}
+                    >
+                      <Briefcase style={{ width: 18, height: 18, color: "rgb(6, 182, 212)" }} />
+                      <h3
+                        style={{
+                          fontSize: 16,
+                          fontWeight: 650,
+                          color: "var(--text-primary)",
+                          letterSpacing: "-0.3px",
+                        }}
+                      >
+                        Finding your best matches...
+                      </h3>
+                    </div>
+                    <div
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+                        gap: 16,
+                      }}
+                    >
+                      {[1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          style={{
+                            padding: 20,
+                            borderRadius: "var(--radius-md)",
+                            background: "rgba(255,255,255,0.03)",
+                            border: "1px solid rgba(255,255,255,0.06)",
+                          }}
+                        >
+                          <div
+                            style={{
+                              height: 18,
+                              width: "70%",
+                              borderRadius: 6,
+                              background: "rgba(255,255,255,0.06)",
+                              marginBottom: 12,
+                              animation: "pulse 1.5s ease-in-out infinite",
+                            }}
+                          />
+                          <div
+                            style={{
+                              height: 14,
+                              width: "50%",
+                              borderRadius: 6,
+                              background: "rgba(255,255,255,0.04)",
+                              marginBottom: 8,
+                              animation: "pulse 1.5s ease-in-out 0.2s infinite",
+                            }}
+                          />
+                          <div
+                            style={{
+                              height: 40,
+                              width: "100%",
+                              borderRadius: 6,
+                              background: "rgba(255,255,255,0.03)",
+                              animation: "pulse 1.5s ease-in-out 0.4s infinite",
+                            }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Job Results ── */}
+                {jobResults[profile._id] && !jobLoading[profile._id] && (
+                  <div style={{ marginTop: 24 }}>
+                    {/* Search Info Header */}
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        marginBottom: 20,
+                        flexWrap: "wrap",
+                        gap: 12,
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <div
+                          style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 8,
+                            background: "linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(52, 211, 153, 0.2) 100%)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <Briefcase style={{ width: 16, height: 16, color: "rgb(6, 182, 212)" }} />
+                        </div>
+                        <div>
+                          <h3
+                            style={{
+                              fontSize: 16,
+                              fontWeight: 650,
+                              color: "var(--text-primary)",
+                              letterSpacing: "-0.3px",
+                            }}
+                          >
+                            Job Recommendations
+                          </h3>
+                          <p style={{ fontSize: 12, color: "var(--text-muted)", marginTop: 2 }}>
+                            {jobResults[profile._id].jobs.length} jobs found
+                            {jobResults[profile._id].targetRoles.length > 0 &&
+                              ` • Targeting: ${jobResults[profile._id].targetRoles.slice(0, 3).join(", ")}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Search terms pills */}
+                      {jobResults[profile._id].searchTerms.length > 0 && (
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          {jobResults[profile._id].searchTerms.slice(0, 4).map((term) => (
+                            <span
+                              key={term}
+                              style={{
+                                padding: "4px 10px",
+                                fontSize: 11,
+                                borderRadius: "var(--radius-full)",
+                                background: "rgba(6, 182, 212, 0.1)",
+                                border: "1px solid rgba(6, 182, 212, 0.2)",
+                                color: "rgb(6, 182, 212)",
+                                fontWeight: 500,
+                              }}
+                            >
+                              {term}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Job Cards Grid */}
+                    {jobResults[profile._id].jobs.length === 0 ? (
+                      <div
+                        style={{
+                          padding: 32,
+                          textAlign: "center",
+                          borderRadius: "var(--radius-md)",
+                          background: "rgba(255,255,255,0.02)",
+                          border: "1px solid rgba(255,255,255,0.06)",
+                        }}
+                      >
+                        <Briefcase
+                          style={{
+                            width: 32,
+                            height: 32,
+                            color: "var(--text-muted)",
+                            margin: "0 auto 12px",
+                          }}
+                        />
+                        <p style={{ color: "var(--text-muted)", fontSize: 14 }}>
+                          No matching jobs found. Try updating your profile with more skills or target roles.
+                        </p>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                          gap: 16,
+                        }}
+                      >
+                        {jobResults[profile._id].jobs.map((job, idx) => {
+                          const jobKey = `${profile._id}-${idx}`;
+                          const isExpanded = expandedJob === jobKey;
+
+                          return (
+                            <div
+                              key={idx}
+                              style={{
+                                padding: 0,
+                                borderRadius: "var(--radius-md)",
+                                background: "rgba(255,255,255,0.03)",
+                                border: "1px solid rgba(255,255,255,0.08)",
+                                overflow: "hidden",
+                                transition: "all 0.2s ease",
+                                position: "relative",
+                              }}
+                              onMouseEnter={(e) => {
+                                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(6, 182, 212, 0.3)";
+                                (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 20px rgba(6, 182, 212, 0.08)";
+                              }}
+                              onMouseLeave={(e) => {
+                                (e.currentTarget as HTMLDivElement).style.borderColor = "rgba(255,255,255,0.08)";
+                                (e.currentTarget as HTMLDivElement).style.boxShadow = "none";
+                              }}
+                            >
+                              {/* Card Header */}
+                              <div style={{ padding: "18px 18px 14px" }}>
+                                <h4
+                                  style={{
+                                    fontSize: 15,
+                                    fontWeight: 650,
+                                    color: "var(--text-primary)",
+                                    marginBottom: 6,
+                                    lineHeight: 1.3,
+                                    letterSpacing: "-0.2px",
+                                  }}
+                                >
+                                  {job.title || "Untitled Position"}
+                                </h4>
+
+                                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                                  {job.company && (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        fontSize: 13,
+                                        color: "var(--text-secondary)",
+                                      }}
+                                    >
+                                      <Building2 style={{ width: 13, height: 13, flexShrink: 0 }} />
+                                      {job.company}
+                                    </div>
+                                  )}
+                                  {job.location && (
+                                    <div
+                                      style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        fontSize: 12,
+                                        color: "var(--text-muted)",
+                                      }}
+                                    >
+                                      <MapPin style={{ width: 12, height: 12, flexShrink: 0 }} />
+                                      {job.location}
+                                      {job.remote && (
+                                        <span
+                                          style={{
+                                            padding: "2px 6px",
+                                            fontSize: 10,
+                                            borderRadius: 4,
+                                            background: "rgba(52, 211, 153, 0.12)",
+                                            color: "rgb(52, 211, 153)",
+                                            fontWeight: 600,
+                                          }}
+                                        >
+                                          Remote
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Meta badges */}
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    gap: 6,
+                                    flexWrap: "wrap",
+                                    marginTop: 10,
+                                  }}
+                                >
+                                  {job.employmentType && (
+                                    <span
+                                      style={{
+                                        padding: "3px 8px",
+                                        fontSize: 10,
+                                        borderRadius: 4,
+                                        background: "rgba(168, 85, 247, 0.1)",
+                                        color: "rgb(168, 85, 247)",
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      {job.employmentType}
+                                    </span>
+                                  )}
+                                  {job.experienceLevel && (
+                                    <span
+                                      style={{
+                                        padding: "3px 8px",
+                                        fontSize: 10,
+                                        borderRadius: 4,
+                                        background: "rgba(59, 130, 246, 0.1)",
+                                        color: "rgb(59, 130, 246)",
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      {job.experienceLevel}
+                                    </span>
+                                  )}
+                                  {job.salaryRange && (
+                                    <span
+                                      style={{
+                                        padding: "3px 8px",
+                                        fontSize: 10,
+                                        borderRadius: 4,
+                                        background: "rgba(52, 211, 153, 0.1)",
+                                        color: "rgb(52, 211, 153)",
+                                        fontWeight: 500,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 3,
+                                      }}
+                                    >
+                                      <DollarSign style={{ width: 10, height: 10 }} />
+                                      {job.salaryRange}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Description */}
+                              {job.description && (
+                                <div style={{ padding: "0 18px 14px" }}>
+                                  <p
+                                    style={{
+                                      fontSize: 12,
+                                      color: "var(--text-muted)",
+                                      lineHeight: 1.6,
+                                      maxHeight: isExpanded ? "none" : 60,
+                                      overflow: "hidden",
+                                      transition: "max-height 0.3s ease",
+                                    }}
+                                  >
+                                    {job.description}
+                                  </p>
+                                  {job.description.length > 150 && (
+                                    <button
+                                      onClick={() =>
+                                        setExpandedJob(isExpanded ? null : jobKey)
+                                      }
+                                      style={{
+                                        background: "none",
+                                        border: "none",
+                                        color: "rgb(6, 182, 212)",
+                                        fontSize: 11,
+                                        cursor: "pointer",
+                                        padding: "4px 0",
+                                        fontWeight: 500,
+                                      }}
+                                    >
+                                      {isExpanded ? "Show less" : "Show more"}
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Skills/Technologies */}
+                              {(job.skills.length > 0 || job.technologies.length > 0) && (
+                                <div
+                                  style={{
+                                    padding: "0 18px 14px",
+                                    display: "flex",
+                                    gap: 4,
+                                    flexWrap: "wrap",
+                                  }}
+                                >
+                                  {[...new Set([...job.skills, ...job.technologies])]
+                                    .slice(0, 6)
+                                    .map((skill) => (
+                                      <span
+                                        key={skill}
+                                        style={{
+                                          padding: "2px 7px",
+                                          fontSize: 10,
+                                          borderRadius: 4,
+                                          background: "rgba(255,255,255,0.05)",
+                                          border: "1px solid rgba(255,255,255,0.08)",
+                                          color: "var(--text-muted)",
+                                          fontWeight: 500,
+                                        }}
+                                      >
+                                        {skill}
+                                      </span>
+                                    ))}
+                                </div>
+                              )}
+
+                              {/* Action Buttons */}
+                              <div
+                                style={{
+                                  padding: "12px 18px",
+                                  borderTop: "1px solid rgba(255,255,255,0.05)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: 8,
+                                }}
+                              >
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                    gap: 8,
+                                  }}
+                                >
+                                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                    {(job.applicationUrl || job.sourceUrl) ? (
+                                      <a
+                                        href={job.applicationUrl || job.sourceUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: 6,
+                                          padding: "8px 16px",
+                                          fontSize: 12,
+                                          fontWeight: 600,
+                                          borderRadius: 6,
+                                          background: "linear-gradient(135deg, rgba(52, 211, 153, 0.15) 0%, rgba(6, 182, 212, 0.15) 100%)",
+                                          color: "rgb(52, 211, 153)",
+                                          textDecoration: "none",
+                                          transition: "all 0.2s ease",
+                                          border: "1px solid rgba(52, 211, 153, 0.2)",
+                                        }}
+                                      >
+                                        Apply Now
+                                        <ArrowRight style={{ width: 12, height: 12 }} />
+                                      </a>
+                                    ) : (
+                                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                                        No application link
+                                      </span>
+                                    )}
+
+                                    {/* Build Resume Button */}
+                                    <button
+                                      onClick={() => handleBuildResume(profile._id, job, idx)}
+                                      disabled={resumeLoading[`${profile._id}-${idx}`]}
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        padding: "8px 16px",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        borderRadius: 6,
+                                        background: resumeSuccess[`${profile._id}-${idx}`]
+                                          ? "linear-gradient(135deg, rgba(52, 211, 153, 0.2) 0%, rgba(34, 197, 94, 0.2) 100%)"
+                                          : "linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%)",
+                                        color: resumeSuccess[`${profile._id}-${idx}`]
+                                          ? "rgb(34, 197, 94)"
+                                          : "rgb(168, 85, 247)",
+                                        border: resumeSuccess[`${profile._id}-${idx}`]
+                                          ? "1px solid rgba(34, 197, 94, 0.3)"
+                                          : "1px solid rgba(168, 85, 247, 0.2)",
+                                        cursor: resumeLoading[`${profile._id}-${idx}`]
+                                          ? "not-allowed"
+                                          : "pointer",
+                                        transition: "all 0.2s ease",
+                                        opacity: resumeLoading[`${profile._id}-${idx}`] ? 0.7 : 1,
+                                      }}
+                                    >
+                                      {resumeLoading[`${profile._id}-${idx}`] ? (
+                                        <>
+                                          <Loader2
+                                            style={{
+                                              width: 12,
+                                              height: 12,
+                                              animation: "spin 1s linear infinite",
+                                            }}
+                                          />
+                                          Building...
+                                        </>
+                                      ) : resumeSuccess[`${profile._id}-${idx}`] ? (
+                                        <>
+                                          <Download style={{ width: 12, height: 12 }} />
+                                          Downloaded!
+                                        </>
+                                      ) : (
+                                        <>
+                                          <FileText style={{ width: 12, height: 12 }} />
+                                          Build Resume
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+
+                                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                                    {job.source && (
+                                      <span
+                                        style={{
+                                          fontSize: 10,
+                                          color: "var(--text-muted)",
+                                          opacity: 0.7,
+                                        }}
+                                      >
+                                        via {job.source}
+                                      </span>
+                                    )}
+                                    {job.postedAt && (
+                                      <span
+                                        style={{
+                                          fontSize: 10,
+                                          color: "var(--text-muted)",
+                                          opacity: 0.5,
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: 3,
+                                        }}
+                                      >
+                                        <Clock style={{ width: 10, height: 10 }} />
+                                        {job.postedAt}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Resume Build Error */}
+                                {resumeError[`${profile._id}-${idx}`] && (
+                                  <div
+                                    style={{
+                                      padding: "6px 10px",
+                                      borderRadius: 4,
+                                      background: "rgba(239, 68, 68, 0.08)",
+                                      border: "1px solid rgba(239, 68, 68, 0.2)",
+                                      color: "rgb(239, 68, 68)",
+                                      fontSize: 11,
+                                    }}
+                                  >
+                                    {resumeError[`${profile._id}-${idx}`]}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

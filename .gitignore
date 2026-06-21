@@ -7,3 +7,4 @@ coverage
 npm-debug.log*
 dev-server*.log
 dev-node*.log
+graphify-out
